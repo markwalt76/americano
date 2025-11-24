@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <title>Planning 8 joueurs - Doubles</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
   <style>
     :root {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -197,6 +205,30 @@
       -webkit-overflow-scrolling: touch;
     }
 
+    /* QR code */
+    .share-box {
+      margin-top: 24px;
+      padding-top: 12px;
+      border-top: 1px dashed #e5e7eb;
+      text-align: center;
+    }
+    .qr-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .qr-subtitle {
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+    .qr-wrapper img {
+      max-width: 160px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
     @media (max-width: 900px) {
       .layout {
         grid-template-columns: minmax(0, 1fr);
@@ -259,10 +291,10 @@
 
     <div class="actions">
       <button id="generate-btn">
-        🔁 Générer / remettre à zéro
+        🔁 Réinitialiser noms & scores
       </button>
       <span class="hint">
-        Ce bouton remet les scores à zéro pour tout le monde. Rafraîchir la page ne les efface pas.
+        Ce bouton remet <strong>tous les noms</strong> et <strong>tous les scores</strong> à zéro pour tout le monde.
       </span>
     </div>
 
@@ -290,7 +322,7 @@
         </div>
       </div>
 
-      <!-- CLASSEMENT -->
+      <!-- CLASSEMENT + PARTAGE -->
       <div>
         <h2>Classement</h2>
         <p class="subtitle-small">
@@ -308,12 +340,25 @@
             <tbody id="ranking-body"></tbody>
           </table>
         </div>
+
+        <div class="share-box">
+          <div class="qr-title">Partager le tournoi</div>
+          <div class="qr-subtitle">
+            Scanne le QR code pour ouvrir<br />americano.walton.fr
+          </div>
+          <div class="qr-wrapper">
+            <img
+              src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https%3A%2F%2Famericano.walton.fr"
+              alt="QR code vers americano.walton.fr"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-    // 👉 URL de ton Web Service Flask
+    // 👉 URL de ton Web Service Flask (API scores)
     const API_BASE = "https://walton-holidays-1.onrender.com";
 
     const rounds = [
@@ -347,7 +392,6 @@
       ],
     ];
 
-    // scores["round-match-team"] = nombre
     let scores = {};
     let remotePlayers = [];
 
@@ -580,10 +624,21 @@
       updateStandings();
     }
 
-    // Bouton : remet tout à zéro (scores + sauvegarde)
+    // Bouton : avertissement + reset complet noms + scores
     document.getElementById("generate-btn").addEventListener("click", (e) => {
       e.preventDefault();
+      const ok = confirm(
+        "⚠️ ATTENTION : ceci va remettre à zéro TOUS les noms et TOUS les scores pour tout le monde.\n\nEs-tu sûr de vouloir réinitialiser le tournoi ?"
+      );
+      if (!ok) return;
+
       scores = {};
+
+      for (let i = 0; i < 8; i++) {
+        const input = document.getElementById("p" + i);
+        if (input) input.value = "";
+      }
+
       saveToServer();
       renderSchedule();
     });
@@ -603,6 +658,15 @@
       await loadFromServer();
       renderSchedule();
     })();
+
+    // 📲 Enregistrement du Service Worker pour la PWA
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker
+          .register("/sw.js")
+          .catch((err) => console.warn("SW registration failed", err));
+      });
+    }
   </script>
 </body>
 </html>
