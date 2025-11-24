@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stats du tournoi - Americano</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f7;
+      color: #111827;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 20px;
+    }
+    .app {
+      background: #ffffff;
+      max-width: 1100px;
+      width: 100%;
+      padding: 24px 24px 32px;
+      border-radius: 18px;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.08);
+    }
+    h1 {
+      font-size: 1.6rem;
+      margin: 0 0 6px;
+    }
+    .subtitle {
+      margin: 0 0 16px;
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+    a.link {
+      color: #2563eb;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    a.link:hover {
+      text-decoration: underline;
+    }
+
+    .tables-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 24px;
+      margin-top: 16px;
+    }
+
+    .card {
+      border-radius: 16px;
+      border: 1px solid #e5e7eb;
+      padding: 16px;
+      background: #f9fafb;
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      margin: 0 0 8px;
+    }
+    .card p {
+      margin: 0 0 10px;
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 0.8rem;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 4px 6px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    th {
+      background: #eff2ff;
+      font-weight: 600;
+    }
+    .row-header {
+      background: #f3f4f6;
+      font-weight: 600;
+      text-align: left;
+      position: sticky;
+      left: 0;
+    }
+    .diag {
+      background: #f9fafb;
+      color: #9ca3af;
+    }
+    .highlight-soft {
+      background: #fef3c7;
+    }
+    .summary {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: #4b5563;
+    }
+
+    @media (max-width: 800px) {
+      h1 {
+        font-size: 1.3rem;
+      }
+      .card h2 {
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Statistiques des rencontres</h1>
+    <p class="subtitle">
+      Basé sur le planning actuel : chaque joueur joue une fois avec chaque autre,
+      et entre <strong>1 et 3 fois</strong> contre chaque autre.
+      <br>
+      <a class="link" href="/">⬅ Revenir au planning</a>
+    </p>
+
+    <div id="names-info" class="summary"></div>
+
+    <div class="tables-grid">
+      <div class="card">
+        <h2>Nombre de fois ensemble (partenaires)</h2>
+        <p>
+          Pour chaque paire de joueurs, combien de fois ils sont dans la <strong>même équipe</strong>.
+          Normalement, chaque paire doit avoir <strong>1</strong>.
+        </p>
+        <div class="table-wrapper">
+          <table id="table-partners"></table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Nombre de fois en face (adversaires)</h2>
+        <p>
+          Pour chaque paire de joueurs, combien de fois ils sont <strong>dans l'équipe adverse</strong>.
+          Chaque valeur doit être entre <strong>1</strong> et <strong>3</strong>.
+        </p>
+        <div class="table-wrapper">
+          <table id="table-opponents"></table>
+        </div>
+        <div id="summary-opponents" class="summary"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Même API que sur la page principale
+    const API_BASE = "https://walton-holidays-1.onrender.com";
+
+    // 🔁 IMPORTANT : même planning que dans index.html (version optimisée 1–3 fois)
+    // 0 = Joueur 1, 1 = Joueur 2, ..., 7 = Joueur 8
+    const rounds = [
+      [
+        { court: 1, teamA: [0, 1], teamB: [2, 3] },
+        { court: 2, teamA: [4, 5], teamB: [6, 7] },
+      ],
+      [
+        { court: 1, teamA: [0, 2], teamB: [1, 3] },
+        { court: 2, teamA: [4, 6], teamB: [5, 7] },
+      ],
+      [
+        { court: 1, teamA: [0, 3], teamB: [4, 7] },
+        { court: 2, teamA: [1, 2], teamB: [5, 6] },
+      ],
+      [
+        { court: 1, teamA: [0, 4], teamB: [1, 5] },
+        { court: 2, teamA: [2, 6], teamB: [3, 7] },
+      ],
+      [
+        { court: 1, teamA: [0, 5], teamB: [2, 7] },
+        { court: 2, teamA: [1, 4], teamB: [3, 6] },
+      ],
+      [
+        { court: 1, teamA: [0, 6], teamB: [2, 4] },
+        { court: 2, teamA: [1, 7], teamB: [3, 5] },
+      ],
+      [
+        { court: 1, teamA: [0, 7], teamB: [1, 6] },
+        { court: 2, teamA: [2, 5], teamB: [3, 4] },
+      ],
+    ];
+
+    async function loadPlayers() {
+      try {
+        const res = await fetch(`${API_BASE}/scores`, { cache: "no-store" });
+        if (!res.ok) throw new Error("API error");
+        const data = await res.json();
+        const players = Array.isArray(data.players) ? data.players : [];
+        const names = [];
+        for (let i = 0; i < 8; i++) {
+          const val = (players[i] || "").trim();
+          names.push(val || `Joueur ${i + 1}`);
+        }
+        return names;
+      } catch (e) {
+        console.warn("Impossible de charger les noms depuis l'API, on utilise Joueur 1..8");
+        const names = [];
+        for (let i = 0; i < 8; i++) {
+          names.push(`Joueur ${i + 1}`);
+        }
+        return names;
+      }
+    }
+
+    function computeStats() {
+      const n = 8;
+      const partners = Array.from({ length: n }, () =>
+        Array.from({ length: n }, () => 0)
+      );
+      const opponents = Array.from({ length: n }, () =>
+        Array.from({ length: n }, () => 0)
+      );
+
+      rounds.forEach((round) => {
+        round.forEach((match) => {
+          const tA = match.teamA;
+          const tB = match.teamB;
+
+          // Partenaires : toutes les paires dans la même équipe
+          for (let i = 0; i < tA.length; i++) {
+            for (let j = i + 1; j < tA.length; j++) {
+              const a = tA[i];
+              const b = tA[j];
+              partners[a][b]++;
+              partners[b][a]++;
+            }
+          }
+          for (let i = 0; i < tB.length; i++) {
+            for (let j = i + 1; j < tB.length; j++) {
+              const a = tB[i];
+              const b = tB[j];
+              partners[a][b]++;
+              partners[b][a]++;
+            }
+          }
+
+          // Adversaires : tous les couples entre équipe A et équipe B
+          tA.forEach((a) => {
+            tB.forEach((b) => {
+              opponents[a][b]++;
+              opponents[b][a]++;
+            });
+          });
+        });
+      });
+
+      return { partners, opponents };
+    }
+
+    function buildTable(elementId, names, matrix, options = {}) {
+      const n = names.length;
+      const table = document.getElementById(elementId);
+      table.innerHTML = "";
+
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+      const emptyTh = document.createElement("th");
+      emptyTh.textContent = "";
+      headerRow.appendChild(emptyTh);
+      for (let j = 0; j < n; j++) {
+        const th = document.createElement("th");
+        th.textContent = names[j];
+        headerRow.appendChild(th);
+      }
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      for (let i = 0; i < n; i++) {
+        const tr = document.createElement("tr");
+        const rowHead = document.createElement("td");
+        rowHead.textContent = names[i];
+        rowHead.className = "row-header";
+        tr.appendChild(rowHead);
+
+        for (let j = 0; j < n; j++) {
+          const td = document.createElement("td");
+          if (i === j) {
+            td.textContent = "-";
+            td.classList.add("diag");
+          } else {
+            const v = matrix[i][j];
+            td.textContent = v;
+
+            if (options.highlight && options.highlight(v)) {
+              td.classList.add("highlight-soft");
+            }
+          }
+          tr.appendChild(td);
+        }
+
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+    }
+
+    (async () => {
+      const names = await loadPlayers();
+      const { partners, opponents } = computeStats();
+
+      const namesInfo = document.getElementById("names-info");
+      namesInfo.textContent =
+        "Joueurs utilisés pour ces stats : " + names.join(", ");
+
+      // Table partenaires (devrait être 1 partout hors diagonale)
+      buildTable("table-partners", names, partners, {
+        highlight: (v) => v !== 1,
+      });
+
+      // Table adversaires (doit être entre 1 et 3)
+      buildTable("table-opponents", names, opponents, {
+        highlight: (v) => v < 1 || v > 3,
+      });
+
+      // Petit résumé adversaires
+      const summaryEl = document.getElementById("summary-opponents");
+      let minCount = Infinity;
+      let maxCount = -Infinity;
+      const n = names.length;
+
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const v = opponents[i][j];
+          if (v < minCount) minCount = v;
+          if (v > maxCount) maxCount = v;
+        }
+      }
+
+      summaryEl.textContent =
+        "Sur ce planning : chaque paire de joueurs se rencontre comme adversaires entre " +
+        minCount +
+        " et " +
+        maxCount +
+        " fois.";
+    })();
+  </script>
+</body>
+</html>
