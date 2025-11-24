@@ -127,17 +127,18 @@
       text-align: left;
       white-space: normal;
     }
-    tbody tr:nth-child(even) {
-      background: #f9fafb;
-    }
+
+    /* Colonne Tour */
     .round-cell {
       font-weight: 600;
-      color: #111827;
       white-space: nowrap;
+      text-align: center;
     }
+    /* Colonne Terrain */
     .court-cell {
       color: #4b5563;
       white-space: nowrap;
+      text-align: center;
     }
     .team-cell {
       font-weight: 500;
@@ -188,6 +189,15 @@
     .rank-row-3 {
       background: #fee2e2;
     }
+
+    /* Couleurs par tour */
+    .round-row-0 { background: #fefce8; }
+    .round-row-1 { background: #eff6ff; }
+    .round-row-2 { background: #ecfdf5; }
+    .round-row-3 { background: #fdf2f8; }
+    .round-row-4 { background: #eef2ff; }
+    .round-row-5 { background: #f1f5f9; }
+    .round-row-6 { background: #fff7ed; }
 
     .table-wrapper {
       width: 100%;
@@ -257,14 +267,15 @@
 
     <div class="actions">
       <button id="generate-btn">
-        🔁 Générer / mettre à jour le planning
+        🔁 Générer / remettre à zéro
       </button>
       <span class="hint">
-        Modifier un nom régénère le planning (et remet les scores à zéro).
+        Ce bouton remet les scores à zéro. Rafraîchir la page ne les efface pas.
       </span>
     </div>
 
     <div class="layout">
+      <!-- PLANNING + SCORES -->
       <div>
         <h2>Planning & scores</h2>
         <p class="subtitle-small">
@@ -287,6 +298,7 @@
         </div>
       </div>
 
+      <!-- CLASSEMENT -->
       <div>
         <h2>Classement</h2>
         <p class="subtitle-small">
@@ -309,6 +321,7 @@
   </div>
 
   <script>
+    // Planning fixe avec 8 joueurs (index 0..7)
     const rounds = [
       [
         { court: 1, teamA: [0, 1], teamB: [2, 3] },
@@ -340,6 +353,35 @@
       ],
     ];
 
+    // scores[clé "round-match-team"] = valeur numérique
+    let scores = {};
+
+    function scoreKey(roundIndex, matchIndex, team) {
+      return `${roundIndex}-${matchIndex}-${team}`;
+    }
+
+    function loadScoresFromStorage() {
+      try {
+        const raw = localStorage.getItem("americanoScores");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object") {
+            scores = parsed;
+          }
+        }
+      } catch (e) {
+        scores = {};
+      }
+    }
+
+    function saveScoresToStorage() {
+      try {
+        localStorage.setItem("americanoScores", JSON.stringify(scores));
+      } catch (e) {
+        // ignore
+      }
+    }
+
     function getPlayerNames() {
       const names = [];
       for (let i = 0; i < 8; i++) {
@@ -360,21 +402,15 @@
         diff: 0,
       }));
 
+      // On lit les scores depuis l'objet scores (plus fiable)
       rounds.forEach((round, roundIndex) => {
         round.forEach((match, matchIndex) => {
-          const scoreAInput = document.querySelector(
-            `input[data-round-index="${roundIndex}"][data-match-index="${matchIndex}"][data-team="A"]`
-          );
-          const scoreBInput = document.querySelector(
-            `input[data-round-index="${roundIndex}"][data-match-index="${matchIndex}"][data-team="B"]`
-          );
+          const keyA = scoreKey(roundIndex, matchIndex, "A");
+          const keyB = scoreKey(roundIndex, matchIndex, "B");
+          const a = scores[keyA];
+          const b = scores[keyB];
 
-          if (!scoreAInput || !scoreBInput) return;
-
-          const a = parseInt(scoreAInput.value, 10);
-          const b = parseInt(scoreBInput.value, 10);
-
-          if (Number.isNaN(a) || Number.isNaN(b)) return;
+          if (typeof a !== "number" || typeof b !== "number") return;
 
           match.teamA.forEach((playerIndex) => {
             stats[playerIndex].pointsFor += a;
@@ -426,9 +462,30 @@
       });
     }
 
+    function onScoreChange(e) {
+      const input = e.target;
+      const r = input.getAttribute("data-round-index");
+      const m = input.getAttribute("data-match-index");
+      const t = input.getAttribute("data-team");
+      const key = scoreKey(r, m, t);
+
+      if (input.value === "") {
+        delete scores[key];
+      } else {
+        const val = parseInt(input.value, 10);
+        if (Number.isNaN(val)) {
+          delete scores[key];
+        } else {
+          scores[key] = val;
+        }
+      }
+      saveScoresToStorage();
+      updateStandings();
+    }
+
     function attachScoreListeners(input) {
       ["input", "change", "keyup"].forEach((evt) => {
-        input.addEventListener(evt, updateStandings);
+        input.addEventListener(evt, onScoreChange);
       });
     }
 
@@ -440,11 +497,16 @@
       rounds.forEach((round, roundIndex) => {
         round.forEach((match, matchIndex) => {
           const tr = document.createElement("tr");
+          tr.classList.add(`round-row-${roundIndex}`);
 
-          const roundTd = document.createElement("td");
-          roundTd.className = "round-cell";
-          roundTd.textContent = "Tour " + (roundIndex + 1);
-          tr.appendChild(roundTd);
+          // Colonne "Tour" : une seule fois pour les deux terrains (rowspan)
+          if (matchIndex === 0) {
+            const roundTd = document.createElement("td");
+            roundTd.className = "round-cell";
+            roundTd.rowSpan = round.length; // 2 lignes
+            roundTd.textContent = "Tour " + (roundIndex + 1);
+            tr.appendChild(roundTd);
+          }
 
           const courtTd = document.createElement("td");
           courtTd.className = "court-cell";
@@ -487,6 +549,16 @@
           scoreBInput.setAttribute("data-match-index", matchIndex);
           scoreBInput.setAttribute("data-team", "B");
 
+          // Remet les valeurs déjà enregistrées (localStorage) si existantes
+          const keyA = scoreKey(roundIndex, matchIndex, "A");
+          const keyB = scoreKey(roundIndex, matchIndex, "B");
+          if (typeof scores[keyA] === "number") {
+            scoreAInput.value = scores[keyA];
+          }
+          if (typeof scores[keyB] === "number") {
+            scoreBInput.value = scores[keyB];
+          }
+
           attachScoreListeners(scoreAInput);
           attachScoreListeners(scoreBInput);
 
@@ -503,17 +575,23 @@
       updateStandings();
     }
 
+    // Bouton : remet scores à zéro (mais pas en rafraîchissant la page)
     document.getElementById("generate-btn").addEventListener("click", (e) => {
       e.preventDefault();
+      scores = {};
+      saveScoresToStorage();
       renderSchedule();
     });
 
+    // Quand on change un nom, on régénère le planning en gardant les scores
     for (let i = 0; i < 8; i++) {
       document
         .getElementById("p" + i)
         .addEventListener("input", () => renderSchedule());
     }
 
+    // Initialisation : on recharge les scores et on construit la page
+    loadScoresFromStorage();
     renderSchedule();
   </script>
 </body>
