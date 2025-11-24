@@ -111,6 +111,7 @@
       font-size: 0.8rem;
       color: #6b7280;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -124,7 +125,7 @@
       padding: 6px 8px;
       border-bottom: 1px solid #e5e7eb;
       text-align: left;
-      white-space: nowrap;
+      white-space: normal;
     }
     tbody tr:nth-child(even) {
       background: #f9fafb;
@@ -132,15 +133,18 @@
     .round-cell {
       font-weight: 600;
       color: #111827;
+      white-space: nowrap;
     }
     .court-cell {
       color: #4b5563;
+      white-space: nowrap;
     }
     .team-cell {
       font-weight: 500;
     }
     .score-cell {
       text-align: center;
+      white-space: nowrap;
     }
     .score-input {
       width: 60px;
@@ -157,21 +161,40 @@
       border-color: #2563eb;
       box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
     }
+
     .ranking-table th,
     .ranking-table td {
-      font-size: 0.8rem;
+      font-size: 0.85rem;
     }
     .rank-cell {
       font-weight: 700;
+      width: 60px;
     }
     .player-name-cell {
       font-weight: 600;
     }
-    .positive {
-      color: #16a34a;
+    .points-cell {
+      font-weight: 700;
+      text-align: right;
+      width: 70px;
     }
-    .negative {
-      color: #dc2626;
+
+    /* Styles des 3 premiers */
+    .rank-row-1 {
+      background: #fef9c3;
+    }
+    .rank-row-2 {
+      background: #e5e7eb;
+    }
+    .rank-row-3 {
+      background: #fee2e2;
+    }
+
+    /* Wrapper pour permettre le scroll horizontal sur mobile */
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     @media (max-width: 900px) {
@@ -196,6 +219,7 @@
       Saisis les noms des 8 joueurs, puis le planning se génère automatiquement.
       Chaque paire joue <strong>une seule fois ensemble</strong>.
       Tu peux ensuite saisir les <strong>scores</strong> pour voir le classement.
+      <br />Barème : victoire = 3 pts, nul = 1 pt, défaite = 0 pt.
     </p>
 
     <div class="inputs-grid" id="players-inputs">
@@ -248,24 +272,24 @@
         <h2>Planning & scores</h2>
         <p class="subtitle-small">
           Entre un score sur les deux colonnes (Score A et Score B) pour chaque match.
-          <br />
-          <strong>Barème</strong> : victoire = 3 pts, nul = 1 pt, défaite = 0 pt.
         </p>
-        <table>
-          <thead>
-            <tr>
-              <th>Tour</th>
-              <th>Terrain</th>
-              <th>Équipe A</th>
-              <th>Équipe B</th>
-              <th>Score A</th>
-              <th>Score B</th>
-            </tr>
-          </thead>
-          <tbody id="schedule-body">
-            <!-- Planning généré en JS -->
-          </tbody>
-        </table>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Tour</th>
+                <th>Terrain</th>
+                <th>Équipe A</th>
+                <th>Équipe B</th>
+                <th>Score A</th>
+                <th>Score B</th>
+              </tr>
+            </thead>
+            <tbody id="schedule-body">
+              <!-- Planning généré en JS -->
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- CLASSEMENT -->
@@ -274,25 +298,20 @@
         <p class="subtitle-small">
           Le classement se met à jour automatiquement dès que tu saisis des scores.
         </p>
-        <table class="ranking-table">
-          <thead>
-            <tr>
-              <th>Rang</th>
-              <th>Joueur</th>
-              <th>M.</th>
-              <th>V</th>
-              <th>N</th>
-              <th>D</th>
-              <th>PF</th>
-              <th>PA</th>
-              <th>Diff</th>
-              <th>Pts</th>
-            </tr>
-          </thead>
-          <tbody id="ranking-body">
-            <!-- Classement généré en JS -->
-          </tbody>
-        </table>
+        <div class="table-wrapper">
+          <table class="ranking-table">
+            <thead>
+              <tr>
+                <th>Rang</th>
+                <th>Joueur</th>
+                <th>Points</th>
+              </tr>
+            </thead>
+            <tbody id="ranking-body">
+              <!-- Classement généré en JS -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -343,7 +362,7 @@
     function updateStandings() {
       const names = getPlayerNames();
 
-      // Initialisation des stats par joueur
+      // Initialisation des stats par joueur (on garde tout pour calculer les points proprement)
       const stats = names.map((name) => ({
         name,
         matches: 0,
@@ -370,12 +389,11 @@
           const a = parseInt(scoreAInput.value, 10);
           const b = parseInt(scoreBInput.value, 10);
 
-          // Si un des deux scores n'est pas un nombre valide, on ignore le match
           if (Number.isNaN(a) || Number.isNaN(b)) {
             return;
           }
 
-          // Mise à jour des stats points marqués / encaissés & matchs joués
+          // Mise à jour stats points marqués / encaissés & matchs
           match.teamA.forEach((playerIndex) => {
             stats[playerIndex].matches += 1;
             stats[playerIndex].pointsFor += a;
@@ -387,9 +405,8 @@
             stats[playerIndex].pointsAgainst += a;
           });
 
-          // Résultat du match : on applique le barème 3 / 1 / 0
+          // Résultat du match : barème 3 / 1 / 0
           if (a > b) {
-            // Victoire équipe A
             match.teamA.forEach((playerIndex) => {
               stats[playerIndex].wins += 1;
               stats[playerIndex].score += 3;
@@ -398,7 +415,6 @@
               stats[playerIndex].losses += 1;
             });
           } else if (b > a) {
-            // Victoire équipe B
             match.teamB.forEach((playerIndex) => {
               stats[playerIndex].wins += 1;
               stats[playerIndex].score += 3;
@@ -407,7 +423,6 @@
               stats[playerIndex].losses += 1;
             });
           } else {
-            // Match nul
             match.teamA.forEach((playerIndex) => {
               stats[playerIndex].draws += 1;
               stats[playerIndex].score += 1;
@@ -420,16 +435,12 @@
         });
       });
 
-      // Calcul du goal-average
+      // Goal-average (utilisé comme tiebreaker)
       stats.forEach((s) => {
         s.diff = s.pointsFor - s.pointsAgainst;
       });
 
-      // Tri du classement :
-      // 1) Points de classement
-      // 2) Différence de points
-      // 3) Points marqués
-      // 4) Nom (ordre alphabétique)
+      // Tri du classement : points, diff, points marqués, nom
       const sorted = [...stats].sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         if (b.diff !== a.diff) return b.diff - a.diff;
@@ -443,6 +454,11 @@
       sorted.forEach((player, index) => {
         const tr = document.createElement("tr");
 
+        // Style spécial pour les 3 premiers
+        if (index === 0) tr.classList.add("rank-row-1");
+        if (index === 1) tr.classList.add("rank-row-2");
+        if (index === 2) tr.classList.add("rank-row-3");
+
         const rankTd = document.createElement("td");
         rankTd.className = "rank-cell";
         rankTd.textContent = index + 1;
@@ -453,37 +469,8 @@
         nameTd.textContent = player.name;
         tr.appendChild(nameTd);
 
-        const mTd = document.createElement("td");
-        mTd.textContent = player.matches;
-        tr.appendChild(mTd);
-
-        const vTd = document.createElement("td");
-        vTd.textContent = player.wins;
-        tr.appendChild(vTd);
-
-        const nTd = document.createElement("td");
-        nTd.textContent = player.draws;
-        tr.appendChild(nTd);
-
-        const dTd = document.createElement("td");
-        dTd.textContent = player.losses;
-        tr.appendChild(dTd);
-
-        const pfTd = document.createElement("td");
-        pfTd.textContent = player.pointsFor;
-        tr.appendChild(pfTd);
-
-        const paTd = document.createElement("td");
-        paTd.textContent = player.pointsAgainst;
-        tr.appendChild(paTd);
-
-        const diffTd = document.createElement("td");
-        diffTd.textContent = player.diff;
-        diffTd.className =
-          player.diff > 0 ? "positive" : player.diff < 0 ? "negative" : "";
-        tr.appendChild(diffTd);
-
         const ptsTd = document.createElement("td");
+        ptsTd.className = "points-cell";
         ptsTd.textContent = player.score;
         tr.appendChild(ptsTd);
 
@@ -523,7 +510,6 @@
           tr.appendChild(teamATd);
           tr.appendChild(teamBTd);
 
-          // Colonnes score
           const scoreATd = document.createElement("td");
           const scoreBTd = document.createElement("td");
           scoreATd.className = "score-cell";
@@ -560,24 +546,21 @@
         });
       });
 
-      // Met à jour le classement (noms + scores éventuellement déjà saisis)
       updateStandings();
     }
 
-    // Bouton "Générer"
     document.getElementById("generate-btn").addEventListener("click", (e) => {
       e.preventDefault();
       renderSchedule();
     });
 
-    // Mise à jour automatique quand on tape un nom
     for (let i = 0; i < 8; i++) {
       document
         .getElementById("p" + i)
         .addEventListener("input", () => renderSchedule());
     }
 
-    // Génère un premier planning avec les intitulés "Joueur X"
+    // Initialisation
     renderSchedule();
   </script>
 </body>
