@@ -128,13 +128,11 @@
       white-space: normal;
     }
 
-    /* Colonne Tour */
     .round-cell {
       font-weight: 600;
       white-space: nowrap;
       text-align: center;
     }
-    /* Colonne Terrain */
     .court-cell {
       color: #4b5563;
       white-space: nowrap;
@@ -180,15 +178,9 @@
       width: 70px;
     }
 
-    .rank-row-1 {
-      background: #fef9c3;
-    }
-    .rank-row-2 {
-      background: #e5e7eb;
-    }
-    .rank-row-3 {
-      background: #fee2e2;
-    }
+    .rank-row-1 { background: #fef9c3; }
+    .rank-row-2 { background: #e5e7eb; }
+    .rank-row-3 { background: #fee2e2; }
 
     /* Couleurs par tour */
     .round-row-0 { background: #fefce8; }
@@ -270,7 +262,7 @@
         🔁 Générer / remettre à zéro
       </button>
       <span class="hint">
-        Ce bouton remet les scores à zéro. Rafraîchir la page ne les efface pas.
+        Ce bouton remet les scores à zéro pour tout le monde. Rafraîchir la page ne les efface pas.
       </span>
     </div>
 
@@ -321,7 +313,9 @@
   </div>
 
   <script>
-    // Planning fixe avec 8 joueurs (index 0..7)
+    // 👉 URL de ton Web Service Flask
+    const API_BASE = "https://walton-holidays-1.onrender.com";
+
     const rounds = [
       [
         { court: 1, teamA: [0, 1], teamB: [2, 3] },
@@ -353,33 +347,12 @@
       ],
     ];
 
-    // scores[clé "round-match-team"] = valeur numérique
+    // scores["round-match-team"] = nombre
     let scores = {};
+    let remotePlayers = [];
 
     function scoreKey(roundIndex, matchIndex, team) {
       return `${roundIndex}-${matchIndex}-${team}`;
-    }
-
-    function loadScoresFromStorage() {
-      try {
-        const raw = localStorage.getItem("americanoScores");
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object") {
-            scores = parsed;
-          }
-        }
-      } catch (e) {
-        scores = {};
-      }
-    }
-
-    function saveScoresToStorage() {
-      try {
-        localStorage.setItem("americanoScores", JSON.stringify(scores));
-      } catch (e) {
-        // ignore
-      }
     }
 
     function getPlayerNames() {
@@ -392,6 +365,41 @@
       return names;
     }
 
+    async function loadFromServer() {
+      try {
+        const res = await fetch(`${API_BASE}/scores`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        scores = data.scores || {};
+        remotePlayers = Array.isArray(data.players) ? data.players : [];
+
+        if (remotePlayers.length === 8) {
+          remotePlayers.forEach((name, i) => {
+            const input = document.getElementById("p" + i);
+            if (input) input.value = name;
+          });
+        }
+      } catch (e) {
+        console.warn("Impossible de charger les scores distants", e);
+      }
+    }
+
+    async function saveToServer() {
+      const payload = {
+        scores,
+        players: getPlayerNames(),
+      };
+      try {
+        await fetch(`${API_BASE}/scores`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (e) {
+        console.warn("Impossible d'enregistrer les scores distants", e);
+      }
+    }
+
     function updateStandings() {
       const names = getPlayerNames();
 
@@ -402,7 +410,6 @@
         diff: 0,
       }));
 
-      // On lit les scores depuis l'objet scores (plus fiable)
       rounds.forEach((round, roundIndex) => {
         round.forEach((match, matchIndex) => {
           const keyA = scoreKey(roundIndex, matchIndex, "A");
@@ -479,8 +486,8 @@
           scores[key] = val;
         }
       }
-      saveScoresToStorage();
       updateStandings();
+      saveToServer();
     }
 
     function attachScoreListeners(input) {
@@ -499,11 +506,10 @@
           const tr = document.createElement("tr");
           tr.classList.add(`round-row-${roundIndex}`);
 
-          // Colonne "Tour" : une seule fois pour les deux terrains (rowspan)
           if (matchIndex === 0) {
             const roundTd = document.createElement("td");
             roundTd.className = "round-cell";
-            roundTd.rowSpan = round.length; // 2 lignes
+            roundTd.rowSpan = round.length;
             roundTd.textContent = "Tour " + (roundIndex + 1);
             tr.appendChild(roundTd);
           }
@@ -549,7 +555,6 @@
           scoreBInput.setAttribute("data-match-index", matchIndex);
           scoreBInput.setAttribute("data-team", "B");
 
-          // Remet les valeurs déjà enregistrées (localStorage) si existantes
           const keyA = scoreKey(roundIndex, matchIndex, "A");
           const keyB = scoreKey(roundIndex, matchIndex, "B");
           if (typeof scores[keyA] === "number") {
@@ -575,24 +580,29 @@
       updateStandings();
     }
 
-    // Bouton : remet scores à zéro (mais pas en rafraîchissant la page)
+    // Bouton : remet tout à zéro (scores + sauvegarde)
     document.getElementById("generate-btn").addEventListener("click", (e) => {
       e.preventDefault();
       scores = {};
-      saveScoresToStorage();
+      saveToServer();
       renderSchedule();
     });
 
-    // Quand on change un nom, on régénère le planning en gardant les scores
+    // Quand on change un nom, on régénère le planning et on sauvegarde les noms
     for (let i = 0; i < 8; i++) {
       document
         .getElementById("p" + i)
-        .addEventListener("input", () => renderSchedule());
+        .addEventListener("input", () => {
+          renderSchedule();
+          saveToServer();
+        });
     }
 
-    // Initialisation : on recharge les scores et on construit la page
-    loadScoresFromStorage();
-    renderSchedule();
+    // Initialisation : charger depuis le serveur puis construire la page
+    (async () => {
+      await loadFromServer();
+      renderSchedule();
+    })();
   </script>
 </body>
 </html>
