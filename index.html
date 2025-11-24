@@ -219,7 +219,7 @@
       Saisis les noms des 8 joueurs, puis le planning se génère automatiquement.
       Chaque paire joue <strong>une seule fois ensemble</strong>.
       Tu peux ensuite saisir les <strong>scores</strong> pour voir le classement.
-      <br />Barème : victoire = 3 pts, nul = 1 pt, défaite = 0 pt.
+      <br />Les points du classement = <strong>total des points marqués</strong> par chaque joueur.
     </p>
 
     <div class="inputs-grid" id="players-inputs">
@@ -296,7 +296,7 @@
       <div>
         <h2>Classement</h2>
         <p class="subtitle-small">
-          Le classement se met à jour automatiquement dès que tu saisis des scores.
+          Classement trié sur le <strong>total des points marqués</strong>.
         </p>
         <div class="table-wrapper">
           <table class="ranking-table">
@@ -362,19 +362,14 @@
     function updateStandings() {
       const names = getPlayerNames();
 
-      // Initialisation des stats par joueur (on garde tout pour calculer les points proprement)
+      // Stats par joueur : on garde surtout pointsFor pour le classement
       const stats = names.map((name) => ({
         name,
-        matches: 0,
-        wins: 0,
-        draws: 0,
-        losses: 0,
         pointsFor: 0,
         pointsAgainst: 0,
-        score: 0, // points de classement (3/1/0)
       }));
 
-      // On parcourt tous les matchs pour lire les scores
+      // Parcours de tous les matchs pour lire les scores
       rounds.forEach((round, roundIndex) => {
         round.forEach((match, matchIndex) => {
           const scoreAInput = document.querySelector(
@@ -393,58 +388,30 @@
             return;
           }
 
-          // Mise à jour stats points marqués / encaissés & matchs
+          // Mise à jour : total des points marqués / encaissés
           match.teamA.forEach((playerIndex) => {
-            stats[playerIndex].matches += 1;
             stats[playerIndex].pointsFor += a;
             stats[playerIndex].pointsAgainst += b;
           });
           match.teamB.forEach((playerIndex) => {
-            stats[playerIndex].matches += 1;
             stats[playerIndex].pointsFor += b;
             stats[playerIndex].pointsAgainst += a;
           });
-
-          // Résultat du match : barème 3 / 1 / 0
-          if (a > b) {
-            match.teamA.forEach((playerIndex) => {
-              stats[playerIndex].wins += 1;
-              stats[playerIndex].score += 3;
-            });
-            match.teamB.forEach((playerIndex) => {
-              stats[playerIndex].losses += 1;
-            });
-          } else if (b > a) {
-            match.teamB.forEach((playerIndex) => {
-              stats[playerIndex].wins += 1;
-              stats[playerIndex].score += 3;
-            });
-            match.teamA.forEach((playerIndex) => {
-              stats[playerIndex].losses += 1;
-            });
-          } else {
-            match.teamA.forEach((playerIndex) => {
-              stats[playerIndex].draws += 1;
-              stats[playerIndex].score += 1;
-            });
-            match.teamB.forEach((playerIndex) => {
-              stats[playerIndex].draws += 1;
-              stats[playerIndex].score += 1;
-            });
-          }
         });
       });
 
-      // Goal-average (utilisé comme tiebreaker)
+      // Goal-average pour départager en cas d’égalité
       stats.forEach((s) => {
         s.diff = s.pointsFor - s.pointsAgainst;
       });
 
-      // Tri du classement : points, diff, points marqués, nom
+      // Tri du classement :
+      // 1) total des points marqués
+      // 2) différence de points
+      // 3) nom
       const sorted = [...stats].sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        if (b.diff !== a.diff) return b.diff - a.diff;
         if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
+        if (b.diff !== a.diff) return b.diff - a.diff;
         return a.name.localeCompare(b.name, "fr");
       });
 
@@ -471,7 +438,7 @@
 
         const ptsTd = document.createElement("td");
         ptsTd.className = "points-cell";
-        ptsTd.textContent = player.score;
+        ptsTd.textContent = player.pointsFor;
         tr.appendChild(ptsTd);
 
         rankingBody.appendChild(tr);
