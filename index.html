@@ -136,11 +136,6 @@
       white-space: normal;
     }
 
-    .round-cell {
-      font-weight: 600;
-      white-space: nowrap;
-      text-align: center;
-    }
     .court-cell {
       color: #4b5563;
       white-space: nowrap;
@@ -167,6 +162,16 @@
     .score-input:focus {
       border-color: #2563eb;
       box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+    }
+
+    .round-header-cell {
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #4b5563;
+      padding-top: 10px;
+      padding-bottom: 4px;
     }
 
     .ranking-table th,
@@ -309,7 +314,6 @@
           <table>
             <thead>
               <tr>
-                <th>Tour</th>
                 <th>Terrain</th>
                 <th>Équipe A</th>
                 <th>Équipe B</th>
@@ -361,37 +365,37 @@
     // 👉 URL de ton Web Service Flask (API scores)
     const API_BASE = "https://walton-holidays-1.onrender.com";
 
+    // Planning optimisé (1 fois partenaire, 1 à 3 fois adversaire)
     const rounds = [
-  [
-    { court: 1, teamA: [0, 1], teamB: [2, 3] },
-    { court: 2, teamA: [4, 5], teamB: [6, 7] },
-  ],
-  [
-    { court: 1, teamA: [0, 2], teamB: [1, 3] },
-    { court: 2, teamA: [4, 6], teamB: [5, 7] },
-  ],
-  [
-    { court: 1, teamA: [0, 3], teamB: [4, 7] },
-    { court: 2, teamA: [1, 2], teamB: [5, 6] },
-  ],
-  [
-    { court: 1, teamA: [0, 4], teamB: [1, 5] },
-    { court: 2, teamA: [2, 6], teamB: [3, 7] },
-  ],
-  [
-    { court: 1, teamA: [0, 5], teamB: [2, 7] },
-    { court: 2, teamA: [1, 4], teamB: [3, 6] },
-  ],
-  [
-    { court: 1, teamA: [0, 6], teamB: [2, 4] },
-    { court: 2, teamA: [1, 7], teamB: [3, 5] },
-  ],
-  [
-    { court: 1, teamA: [0, 7], teamB: [1, 6] },
-    { court: 2, teamA: [2, 5], teamB: [3, 4] },
-  ],
-];
-
+      [
+        { court: 1, teamA: [0, 1], teamB: [2, 3] },
+        { court: 2, teamA: [4, 5], teamB: [6, 7] },
+      ],
+      [
+        { court: 1, teamA: [0, 2], teamB: [1, 3] },
+        { court: 2, teamA: [4, 6], teamB: [5, 7] },
+      ],
+      [
+        { court: 1, teamA: [0, 3], teamB: [4, 7] },
+        { court: 2, teamA: [1, 2], teamB: [5, 6] },
+      ],
+      [
+        { court: 1, teamA: [0, 4], teamB: [1, 5] },
+        { court: 2, teamA: [2, 6], teamB: [3, 7] },
+      ],
+      [
+        { court: 1, teamA: [0, 5], teamB: [2, 7] },
+        { court: 2, teamA: [1, 4], teamB: [3, 6] },
+      ],
+      [
+        { court: 1, teamA: [0, 6], teamB: [2, 4] },
+        { court: 2, teamA: [1, 7], teamB: [3, 5] },
+      ],
+      [
+        { court: 1, teamA: [0, 7], teamB: [1, 6] },
+        { court: 2, teamA: [2, 5], teamB: [3, 4] },
+      ],
+    ];
 
     let scores = {};
     let remotePlayers = [];
@@ -547,17 +551,20 @@
       tbody.innerHTML = "";
 
       rounds.forEach((round, roundIndex) => {
+        // Ligne "Tour X" au-dessus des terrains
+        const headerTr = document.createElement("tr");
+        headerTr.classList.add(`round-row-${roundIndex}`);
+        const headerTd = document.createElement("td");
+        headerTd.colSpan = 5;
+        headerTd.className = "round-header-cell";
+        headerTd.textContent = "Tour " + (roundIndex + 1);
+        headerTr.appendChild(headerTd);
+        tbody.appendChild(headerTr);
+
+        // Lignes des terrains
         round.forEach((match, matchIndex) => {
           const tr = document.createElement("tr");
           tr.classList.add(`round-row-${roundIndex}`);
-
-          if (matchIndex === 0) {
-            const roundTd = document.createElement("td");
-            roundTd.className = "round-cell";
-            roundTd.rowSpan = round.length;
-            roundTd.textContent = "Tour " + (roundIndex + 1);
-            tr.appendChild(roundTd);
-          }
 
           const courtTd = document.createElement("td");
           courtTd.className = "court-cell";
