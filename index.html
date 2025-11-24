@@ -20,7 +20,7 @@
     }
     .app {
       background: #ffffff;
-      max-width: 900px;
+      max-width: 1000px;
       width: 100%;
       padding: 24px 24px 32px;
       border-radius: 18px;
@@ -30,10 +30,25 @@
       font-size: 1.6rem;
       margin: 0 0 4px;
     }
+    h2 {
+      font-size: 1.3rem;
+      margin: 24px 0 6px;
+    }
     .subtitle {
       margin: 0 0 20px;
       font-size: 0.9rem;
       color: #6b7280;
+    }
+    .subtitle-small {
+      margin: 0 0 10px;
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2.5fr) minmax(0, 1.5fr);
+      gap: 24px;
+      align-items: flex-start;
     }
     .inputs-grid {
       display: grid;
@@ -66,6 +81,7 @@
       align-items: center;
       gap: 10px;
       margin: 8px 0 18px;
+      flex-wrap: wrap;
     }
     button {
       border: none;
@@ -105,7 +121,7 @@
       background: #eff2ff;
     }
     th, td {
-      padding: 8px 10px;
+      padding: 6px 8px;
       border-bottom: 1px solid #e5e7eb;
       text-align: left;
       white-space: nowrap;
@@ -123,16 +139,45 @@
     .team-cell {
       font-weight: 500;
     }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 3px 8px;
-      border-radius: 999px;
-      font-size: 0.7rem;
-      background: #ecfeff;
-      color: #0e7490;
-      border: 1px solid #a5f3fc;
-      margin-left: 4px;
+    .score-cell {
+      text-align: center;
+    }
+    .score-input {
+      width: 60px;
+      box-sizing: border-box;
+      padding: 4px 6px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      font-size: 0.8rem;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .score-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+    }
+    .ranking-table th,
+    .ranking-table td {
+      font-size: 0.8rem;
+    }
+    .rank-cell {
+      font-weight: 700;
+    }
+    .player-name-cell {
+      font-weight: 600;
+    }
+    .positive {
+      color: #16a34a;
+    }
+    .negative {
+      color: #dc2626;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
     }
     @media (max-width: 800px) {
       .inputs-grid {
@@ -150,10 +195,10 @@
     <p class="subtitle">
       Saisis les noms des 8 joueurs, puis le planning se génère automatiquement.
       Chaque paire joue <strong>une seule fois ensemble</strong>.
+      Tu peux ensuite saisir les <strong>scores</strong> pour voir le classement.
     </p>
 
     <div class="inputs-grid" id="players-inputs">
-      <!-- Inputs générés par JS si tu veux, mais on peut aussi les écrire à la main -->
       <div>
         <label for="p0">Joueur 1</label>
         <input id="p0" type="text" placeholder="Joueur 1" />
@@ -193,62 +238,92 @@
         🔁 Générer / mettre à jour le planning
       </button>
       <span class="hint">
-        Le tableau se met aussi à jour dès que tu modifies un nom.
+        Modifier un nom régénère le planning (et remet les scores à zéro).
       </span>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Tour</th>
-          <th>Terrain</th>
-          <th>Équipe A</th>
-          <th>Équipe B</th>
-        </tr>
-      </thead>
-      <tbody id="schedule-body">
-        <!-- Planning généré en JS -->
-      </tbody>
-    </table>
+    <div class="layout">
+      <!-- PLANNING + SCORES -->
+      <div>
+        <h2>Planning & scores</h2>
+        <p class="subtitle-small">
+          Entre un score sur les deux colonnes (Score A et Score B) pour chaque match.
+          <br />
+          <strong>Barème</strong> : victoire = 3 pts, nul = 1 pt, défaite = 0 pt.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Tour</th>
+              <th>Terrain</th>
+              <th>Équipe A</th>
+              <th>Équipe B</th>
+              <th>Score A</th>
+              <th>Score B</th>
+            </tr>
+          </thead>
+          <tbody id="schedule-body">
+            <!-- Planning généré en JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- CLASSEMENT -->
+      <div>
+        <h2>Classement</h2>
+        <p class="subtitle-small">
+          Le classement se met à jour automatiquement dès que tu saisis des scores.
+        </p>
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th>Rang</th>
+              <th>Joueur</th>
+              <th>M.</th>
+              <th>V</th>
+              <th>N</th>
+              <th>D</th>
+              <th>PF</th>
+              <th>PA</th>
+              <th>Diff</th>
+              <th>Pts</th>
+            </tr>
+          </thead>
+          <tbody id="ranking-body">
+            <!-- Classement généré en JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <script>
-    // Planning "abstrait" avec les index 0..7 des joueurs.
-    // Pour chaque tour : 2 terrains, avec 2 équipes de 2 joueurs.
-    // Ce planning garantit que chaque paire de joueurs est
-    // partenaire exactement une fois sur toute la série.
+    // Planning fixe avec 8 joueurs (index 0..7)
     const rounds = [
-      // Tour 1
       [
         { court: 1, teamA: [0, 1], teamB: [2, 3] },
         { court: 2, teamA: [4, 5], teamB: [6, 7] },
       ],
-      // Tour 2
       [
         { court: 1, teamA: [0, 2], teamB: [1, 3] },
         { court: 2, teamA: [4, 6], teamB: [5, 7] },
       ],
-      // Tour 3
       [
         { court: 1, teamA: [0, 3], teamB: [1, 2] },
         { court: 2, teamA: [4, 7], teamB: [5, 6] },
       ],
-      // Tour 4
       [
         { court: 1, teamA: [0, 4], teamB: [1, 5] },
         { court: 2, teamA: [2, 6], teamB: [3, 7] },
       ],
-      // Tour 5
       [
         { court: 1, teamA: [0, 5], teamB: [1, 4] },
         { court: 2, teamA: [2, 7], teamB: [3, 6] },
       ],
-      // Tour 6
       [
         { court: 1, teamA: [0, 6], teamB: [1, 7] },
         { court: 2, teamA: [2, 4], teamB: [3, 5] },
       ],
-      // Tour 7
       [
         { court: 1, teamA: [0, 7], teamB: [1, 6] },
         { court: 2, teamA: [2, 5], teamB: [3, 4] },
@@ -265,13 +340,164 @@
       return names;
     }
 
+    function updateStandings() {
+      const names = getPlayerNames();
+
+      // Initialisation des stats par joueur
+      const stats = names.map((name) => ({
+        name,
+        matches: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        pointsFor: 0,
+        pointsAgainst: 0,
+        score: 0, // points de classement (3/1/0)
+      }));
+
+      // On parcourt tous les matchs pour lire les scores
+      rounds.forEach((round, roundIndex) => {
+        round.forEach((match, matchIndex) => {
+          const scoreAInput = document.querySelector(
+            `input[data-round-index="${roundIndex}"][data-match-index="${matchIndex}"][data-team="A"]`
+          );
+          const scoreBInput = document.querySelector(
+            `input[data-round-index="${roundIndex}"][data-match-index="${matchIndex}"][data-team="B"]`
+          );
+
+          if (!scoreAInput || !scoreBInput) return;
+
+          const a = parseInt(scoreAInput.value, 10);
+          const b = parseInt(scoreBInput.value, 10);
+
+          // Si un des deux scores n'est pas un nombre valide, on ignore le match
+          if (Number.isNaN(a) || Number.isNaN(b)) {
+            return;
+          }
+
+          // Mise à jour des stats points marqués / encaissés & matchs joués
+          match.teamA.forEach((playerIndex) => {
+            stats[playerIndex].matches += 1;
+            stats[playerIndex].pointsFor += a;
+            stats[playerIndex].pointsAgainst += b;
+          });
+          match.teamB.forEach((playerIndex) => {
+            stats[playerIndex].matches += 1;
+            stats[playerIndex].pointsFor += b;
+            stats[playerIndex].pointsAgainst += a;
+          });
+
+          // Résultat du match : on applique le barème 3 / 1 / 0
+          if (a > b) {
+            // Victoire équipe A
+            match.teamA.forEach((playerIndex) => {
+              stats[playerIndex].wins += 1;
+              stats[playerIndex].score += 3;
+            });
+            match.teamB.forEach((playerIndex) => {
+              stats[playerIndex].losses += 1;
+            });
+          } else if (b > a) {
+            // Victoire équipe B
+            match.teamB.forEach((playerIndex) => {
+              stats[playerIndex].wins += 1;
+              stats[playerIndex].score += 3;
+            });
+            match.teamA.forEach((playerIndex) => {
+              stats[playerIndex].losses += 1;
+            });
+          } else {
+            // Match nul
+            match.teamA.forEach((playerIndex) => {
+              stats[playerIndex].draws += 1;
+              stats[playerIndex].score += 1;
+            });
+            match.teamB.forEach((playerIndex) => {
+              stats[playerIndex].draws += 1;
+              stats[playerIndex].score += 1;
+            });
+          }
+        });
+      });
+
+      // Calcul du goal-average
+      stats.forEach((s) => {
+        s.diff = s.pointsFor - s.pointsAgainst;
+      });
+
+      // Tri du classement :
+      // 1) Points de classement
+      // 2) Différence de points
+      // 3) Points marqués
+      // 4) Nom (ordre alphabétique)
+      const sorted = [...stats].sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.diff !== a.diff) return b.diff - a.diff;
+        if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
+        return a.name.localeCompare(b.name, "fr");
+      });
+
+      const rankingBody = document.getElementById("ranking-body");
+      rankingBody.innerHTML = "";
+
+      sorted.forEach((player, index) => {
+        const tr = document.createElement("tr");
+
+        const rankTd = document.createElement("td");
+        rankTd.className = "rank-cell";
+        rankTd.textContent = index + 1;
+        tr.appendChild(rankTd);
+
+        const nameTd = document.createElement("td");
+        nameTd.className = "player-name-cell";
+        nameTd.textContent = player.name;
+        tr.appendChild(nameTd);
+
+        const mTd = document.createElement("td");
+        mTd.textContent = player.matches;
+        tr.appendChild(mTd);
+
+        const vTd = document.createElement("td");
+        vTd.textContent = player.wins;
+        tr.appendChild(vTd);
+
+        const nTd = document.createElement("td");
+        nTd.textContent = player.draws;
+        tr.appendChild(nTd);
+
+        const dTd = document.createElement("td");
+        dTd.textContent = player.losses;
+        tr.appendChild(dTd);
+
+        const pfTd = document.createElement("td");
+        pfTd.textContent = player.pointsFor;
+        tr.appendChild(pfTd);
+
+        const paTd = document.createElement("td");
+        paTd.textContent = player.pointsAgainst;
+        tr.appendChild(paTd);
+
+        const diffTd = document.createElement("td");
+        diffTd.textContent = player.diff;
+        diffTd.className =
+          player.diff > 0 ? "positive" : player.diff < 0 ? "negative" : "";
+        tr.appendChild(diffTd);
+
+        const ptsTd = document.createElement("td");
+        ptsTd.textContent = player.score;
+        tr.appendChild(ptsTd);
+
+        rankingBody.appendChild(tr);
+      });
+    }
+
     function renderSchedule() {
       const names = getPlayerNames();
       const tbody = document.getElementById("schedule-body");
       tbody.innerHTML = "";
 
       rounds.forEach((round, roundIndex) => {
-        round.forEach((match) => {
+        round.forEach((match, matchIndex) => {
           const tr = document.createElement("tr");
 
           const roundTd = document.createElement("td");
@@ -297,9 +523,45 @@
           tr.appendChild(teamATd);
           tr.appendChild(teamBTd);
 
+          // Colonnes score
+          const scoreATd = document.createElement("td");
+          const scoreBTd = document.createElement("td");
+          scoreATd.className = "score-cell";
+          scoreBTd.className = "score-cell";
+
+          const scoreAInput = document.createElement("input");
+          scoreAInput.type = "number";
+          scoreAInput.min = "0";
+          scoreAInput.className = "score-input";
+          scoreAInput.placeholder = "0";
+          scoreAInput.setAttribute("data-round-index", roundIndex);
+          scoreAInput.setAttribute("data-match-index", matchIndex);
+          scoreAInput.setAttribute("data-team", "A");
+
+          const scoreBInput = document.createElement("input");
+          scoreBInput.type = "number";
+          scoreBInput.min = "0";
+          scoreBInput.className = "score-input";
+          scoreBInput.placeholder = "0";
+          scoreBInput.setAttribute("data-round-index", roundIndex);
+          scoreBInput.setAttribute("data-match-index", matchIndex);
+          scoreBInput.setAttribute("data-team", "B");
+
+          scoreAInput.addEventListener("input", updateStandings);
+          scoreBInput.addEventListener("input", updateStandings);
+
+          scoreATd.appendChild(scoreAInput);
+          scoreBTd.appendChild(scoreBInput);
+
+          tr.appendChild(scoreATd);
+          tr.appendChild(scoreBTd);
+
           tbody.appendChild(tr);
         });
       });
+
+      // Met à jour le classement (noms + scores éventuellement déjà saisis)
+      updateStandings();
     }
 
     // Bouton "Générer"
