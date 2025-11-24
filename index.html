@@ -179,7 +179,6 @@
       width: 70px;
     }
 
-    /* Styles des 3 premiers */
     .rank-row-1 {
       background: #fef9c3;
     }
@@ -190,7 +189,6 @@
       background: #fee2e2;
     }
 
-    /* Wrapper pour permettre le scroll horizontal sur mobile */
     .table-wrapper {
       width: 100%;
       overflow-x: auto;
@@ -267,7 +265,6 @@
     </div>
 
     <div class="layout">
-      <!-- PLANNING + SCORES -->
       <div>
         <h2>Planning & scores</h2>
         <p class="subtitle-small">
@@ -285,14 +282,11 @@
                 <th>Score B</th>
               </tr>
             </thead>
-            <tbody id="schedule-body">
-              <!-- Planning généré en JS -->
-            </tbody>
+            <tbody id="schedule-body"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- CLASSEMENT -->
       <div>
         <h2>Classement</h2>
         <p class="subtitle-small">
@@ -307,9 +301,7 @@
                 <th>Points</th>
               </tr>
             </thead>
-            <tbody id="ranking-body">
-              <!-- Classement généré en JS -->
-            </tbody>
+            <tbody id="ranking-body"></tbody>
           </table>
         </div>
       </div>
@@ -317,7 +309,6 @@
   </div>
 
   <script>
-    // Planning fixe avec 8 joueurs (index 0..7)
     const rounds = [
       [
         { court: 1, teamA: [0, 1], teamB: [2, 3] },
@@ -362,14 +353,13 @@
     function updateStandings() {
       const names = getPlayerNames();
 
-      // Stats par joueur : on garde surtout pointsFor pour le classement
       const stats = names.map((name) => ({
         name,
         pointsFor: 0,
         pointsAgainst: 0,
+        diff: 0,
       }));
 
-      // Parcours de tous les matchs pour lire les scores
       rounds.forEach((round, roundIndex) => {
         round.forEach((match, matchIndex) => {
           const scoreAInput = document.querySelector(
@@ -384,11 +374,8 @@
           const a = parseInt(scoreAInput.value, 10);
           const b = parseInt(scoreBInput.value, 10);
 
-          if (Number.isNaN(a) || Number.isNaN(b)) {
-            return;
-          }
+          if (Number.isNaN(a) || Number.isNaN(b)) return;
 
-          // Mise à jour : total des points marqués / encaissés
           match.teamA.forEach((playerIndex) => {
             stats[playerIndex].pointsFor += a;
             stats[playerIndex].pointsAgainst += b;
@@ -400,15 +387,10 @@
         });
       });
 
-      // Goal-average pour départager en cas d’égalité
       stats.forEach((s) => {
         s.diff = s.pointsFor - s.pointsAgainst;
       });
 
-      // Tri du classement :
-      // 1) total des points marqués
-      // 2) différence de points
-      // 3) nom
       const sorted = [...stats].sort((a, b) => {
         if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
         if (b.diff !== a.diff) return b.diff - a.diff;
@@ -421,7 +403,6 @@
       sorted.forEach((player, index) => {
         const tr = document.createElement("tr");
 
-        // Style spécial pour les 3 premiers
         if (index === 0) tr.classList.add("rank-row-1");
         if (index === 1) tr.classList.add("rank-row-2");
         if (index === 2) tr.classList.add("rank-row-3");
@@ -442,6 +423,12 @@
         tr.appendChild(ptsTd);
 
         rankingBody.appendChild(tr);
+      });
+    }
+
+    function attachScoreListeners(input) {
+      ["input", "change", "keyup"].forEach((evt) => {
+        input.addEventListener(evt, updateStandings);
       });
     }
 
@@ -500,8 +487,8 @@
           scoreBInput.setAttribute("data-match-index", matchIndex);
           scoreBInput.setAttribute("data-team", "B");
 
-          scoreAInput.addEventListener("input", updateStandings);
-          scoreBInput.addEventListener("input", updateStandings);
+          attachScoreListeners(scoreAInput);
+          attachScoreListeners(scoreBInput);
 
           scoreATd.appendChild(scoreAInput);
           scoreBTd.appendChild(scoreBInput);
@@ -527,7 +514,6 @@
         .addEventListener("input", () => renderSchedule());
     }
 
-    // Initialisation
     renderSchedule();
   </script>
 </body>
